@@ -6,6 +6,15 @@ export function addDays(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+export function lastTradingDayStr(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1)
+  }
+  return d.toISOString().slice(0, 10)
+}
+
 export function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }

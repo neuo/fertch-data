@@ -13,8 +13,19 @@ interface ChartProps {
   bars: Bar[]
 }
 
+function fmt(n: number) {
+  return n.toFixed(2)
+}
+function fmtVol(n: number) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'
+  return String(n)
+}
+
+// Use Z so the chart treats HH:MM as-is (no tz conversion).
+// The records already store ET times (09:30 = market open).
 function toTimestamp(date: string, time: string): UTCTimestamp {
-  return Math.floor(new Date(`${date}T${time}:00-05:00`).getTime() / 1000) as UTCTimestamp
+  return Math.floor(new Date(`${date}T${time}:00Z`).getTime() / 1000) as UTCTimestamp
 }
 
 const CHART_BG = '#0f0f14'
@@ -24,6 +35,7 @@ const BORDER_COLOR = '#2a2a3e'
 
 export default function Chart({ bars }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
 
   useEffect(() => {
@@ -44,6 +56,17 @@ export default function Chart({ bars }: ChartProps) {
         borderColor: BORDER_COLOR,
         timeVisible: true,
         secondsVisible: false,
+      },
+      localization: {
+        timeFormatter: (ts: number) => {
+          const d = new Date(ts * 1000)
+          const YYYY = d.getUTCFullYear()
+          const MM = String(d.getUTCMonth() + 1).padStart(2, '0')
+          const DD = String(d.getUTCDate()).padStart(2, '0')
+          const hh = String(d.getUTCHours()).padStart(2, '0')
+          const mm = String(d.getUTCMinutes()).padStart(2, '0')
+          return `${YYYY}-${MM}-${DD} ${hh}:${mm}`
+        },
       },
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
@@ -68,6 +91,8 @@ export default function Chart({ bars }: ChartProps) {
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       title: 'VWAP',
+      priceLineVisible: false,
+      lastValueVisible: false,
     })
 
     // --- RSI series (second pane) ---
@@ -143,6 +168,38 @@ export default function Chart({ bars }: ChartProps) {
     vwapSeries.setData(vwapData)
     rsiSeries.setData(rsiData)
 
+    // Build ts → bar lookup for tooltip
+    const barMap = new Map<number, Bar>()
+    for (const bar of bars) {
+      barMap.set(toTimestamp(bar.date, bar.time), bar)
+    }
+
+    chart.subscribeCrosshairMove((param) => {
+      const el = tooltipRef.current
+      if (!el) return
+      if (!param.time || !param.seriesData.size) {
+        el.style.display = 'none'
+        return
+      }
+      const bar = barMap.get(param.time as number)
+      if (!bar) { el.style.display = 'none'; return }
+
+      const change = bar.close - bar.open
+      const changePct = (change / bar.open) * 100
+      const color = change >= 0 ? '#26a69a' : '#ef5350'
+
+      el.style.display = 'block'
+      el.innerHTML = `
+        <span style="color:#9598a1">${bar.date} ${bar.time}</span>
+        <span style="margin-left:8px;color:${color};font-weight:600">${change >= 0 ? '+' : ''}${fmt(change)} (${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%)</span>
+        <span style="margin-left:12px">O <b>${fmt(bar.open)}</b></span>
+        <span style="margin-left:8px">H <b style="color:#26a69a">${fmt(bar.high)}</b></span>
+        <span style="margin-left:8px">L <b style="color:#ef5350">${fmt(bar.low)}</b></span>
+        <span style="margin-left:8px">C <b>${fmt(bar.close)}</b></span>
+        <span style="margin-left:8px;color:#9598a1">Vol <b style="color:#d1d4dc">${fmtVol(bar.volume)}</b></span>
+      `
+    })
+
     chart.timeScale().fitContent()
 
     const ro = new ResizeObserver(() => {
@@ -162,5 +219,14 @@ export default function Chart({ bars }: ChartProps) {
     }
   }, [bars])
 
-  return <div ref={containerRef} className="w-full h-full" />
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      <div
+        ref={tooltipRef}
+        style={{ display: 'none' }}
+        className="absolute top-2 left-2 z-10 px-3 py-1.5 rounded text-xs bg-[#1a1a2e]/90 border border-[#2a2a3e] pointer-events-none whitespace-nowrap"
+      />
+    </div>
+  )
 }

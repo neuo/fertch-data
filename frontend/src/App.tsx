@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { fetchTickers, fetchData, triggerUpdate, fetchUpdateStatus, todayStr } from './api'
+import { fetchTickers, fetchData, triggerUpdate, fetchUpdateStatus, lastTradingDayStr, todayStr } from './api'
 import Chart from './components/Chart'
 import type { Bar, RangeKey } from './types'
 
@@ -9,7 +9,7 @@ export default function App() {
   const [tickers, setTickers] = useState<string[]>([])
   const [activeTicker, setActiveTicker] = useState<string>('')
   const [activeRange, setActiveRange] = useState<RangeKey>('1D')
-  const [startDate, setStartDate] = useState<string>(todayStr())
+  const [startDate, setStartDate] = useState<string>(lastTradingDayStr())
   const [bars, setBars] = useState<Bar[]>([])
   const [loading, setLoading] = useState(false)
   const [updating, setUpdating] = useState(false)
