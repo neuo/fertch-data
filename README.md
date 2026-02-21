@@ -1,14 +1,34 @@
 # financial-data
 
-抓取美股标的历史分时数据（1min），并计算 RSI(14)、EMA(10/20)、VWAP 指标。
+抓取美股标的历史分时数据（1min），计算技术指标，并提供可视化 Web 界面。
 
 ## 安装依赖
 
 ```bash
+# Python 依赖（数据抓取 + API 后端）
 pip3 install -r requirements.txt
+
+# 前端依赖
+cd frontend && npm install
 ```
 
-## 使用
+## 启动
+
+**后端 API（终端 1）：**
+
+```bash
+uvicorn backend.api:app --reload --port 8000
+```
+
+**前端开发服务器（终端 2）：**
+
+```bash
+cd frontend && npm run dev
+```
+
+访问 http://localhost:5173
+
+## 数据抓取
 
 **初始化**（清空旧数据，拉取最近 30 天历史）：
 
@@ -23,6 +43,15 @@ python3 fetch_data.py AAPL TSLA --init   # 指定标的
 python3 fetch_data.py                    # 默认 SNDK / QQQ / NVDA
 python3 fetch_data.py AAPL TSLA          # 指定标的
 ```
+
+也可以在 Web 界面点击右上角 **Update** 按钮触发增量更新。
+
+## 功能
+
+- 选择标的 / 时间范围（1D / 3D / 1W / 2W / 1M）
+- K 线图叠加 EMA10（蓝）、EMA20（橙）、VWAP（紫虚线）
+- 下方 RSI(14) 子图，带 30/70 参考线
+- 点击 Update 触发后台增量拉取并自动刷新
 
 ## 数据存储
 

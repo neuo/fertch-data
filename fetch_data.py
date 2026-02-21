@@ -46,17 +46,6 @@ def _compute_ema(series: pd.Series, period: int) -> pd.Series:
     return series.ewm(span=period, adjust=False).mean()
 
 
-def _compute_vwap(df: pd.DataFrame) -> pd.Series:
-    typical_price = (df["High"] + df["Low"] + df["Close"]) / 3
-    tp_vol = typical_price * df["Volume"]
-    if df.index.tz is not None:
-        day = df.index.tz_convert("America/New_York").floor("D")
-    else:
-        day = df.index.floor("D")
-    cum_tp_vol = tp_vol.groupby(day).cumsum()
-    cum_vol = df["Volume"].groupby(day).cumsum()
-    return cum_tp_vol / cum_vol
-
 
 def load_records(ticker: str) -> dict[str, list]:
     filepath = DATA_DIR / f"{ticker}.records"
@@ -125,7 +114,6 @@ def build_indicator_df(new_df: pd.DataFrame, prefix_closes: list[float]) -> pd.D
     result["RSI_14"] = rsi.iloc[-n:].values
     result["EMA_10"] = ema10.iloc[-n:].values
     result["EMA_20"] = ema20.iloc[-n:].values
-    result["VWAP"] = _compute_vwap(new_df).values
     return result
 
 
@@ -151,7 +139,6 @@ def df_to_records(df: pd.DataFrame) -> dict[str, list]:
             "RSI_14": _val(row["RSI_14"]),
             "EMA_10": _val(row["EMA_10"]),
             "EMA_20": _val(row["EMA_20"]),
-            "VWAP": _val(row["VWAP"]),
         }
         records.setdefault(date_str, []).append(bar)
     return records
